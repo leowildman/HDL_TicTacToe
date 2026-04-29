@@ -41,19 +41,52 @@ module TicTacToe(
         k1_deb <= {k1_deb[0], ~KEY[1]};
     end
     wire human_press = k3_deb[0] & ~k3_deb[1]; 
-    
     wire cpu_press   = k1_deb[0] & ~k1_deb[1]; 
 
     // --- 3. Game State & Logic ---
     reg [1:0] board [0:8]; 
     reg turn = 0;
     integer i;
+
+    reg score_updated; 
+    reg [3:0] p1_score = 0, p2_score = 0;
+    
+    // Check all 8 possible winning lines
+    wire w_r0 = (board[0]!=0) && (board[0]==board[1]) && (board[1]==board[2]);
+    wire w_r1 = (board[3]!=0) && (board[3]==board[4]) && (board[4]==board[5]);
+    wire w_r2 = (board[6]!=0) && (board[6]==board[7]) && (board[7]==board[8]);
+    wire w_c0 = (board[0]!=0) && (board[0]==board[3]) && (board[3]==board[6]);
+    wire w_c1 = (board[1]!=0) && (board[1]==board[4]) && (board[4]==board[7]);
+    wire w_c2 = (board[2]!=0) && (board[2]==board[5]) && (board[5]==board[8]);
+    wire w_d1 = (board[0]!=0) && (board[0]==board[4]) && (board[4]==board[8]);
+    wire w_d2 = (board[2]!=0) && (board[2]==board[4]) && (board[4]==board[6]);
+
+    // Determine WHO won
+    wire win_1 = (board[0]==1&&w_r0) | (board[3]==1&&w_r1) | (board[6]==1&&w_r2) | 
+                 (board[0]==1&&w_c0) | (board[1]==1&&w_c1) | (board[2]==1&&w_c2) | 
+                 (board[0]==1&&w_d1) | (board[2]==1&&w_d2);
+                 
+    wire win_2 = (board[0]==2&&w_r0) | (board[3]==2&&w_r1) | (board[6]==2&&w_r2) | 
+                 (board[0]==2&&w_c0) | (board[1]==2&&w_c1) | (board[2]==2&&w_c2) | 
+                 (board[0]==2&&w_d1) | (board[2]==2&&w_d2);
+                 
+    // Global game over flag
+    wire game_over = w_r0 | w_r1 | w_r2 | w_c0 | w_c1 | w_c2 | w_d1 | w_d2;
     
     always @(posedge pclk) begin
-        // Reset logic (Hard & Soft behave the same here since scoring isn't added yet)
-        if (~KEY[2] || ~KEY[0]) begin 
+        if (~KEY[2]) begin // Hard Reset
             for(i=0; i<9; i=i+1) board[i] <= 0;
-            turn <= 0;
+            turn <= 0; p1_score <= 0; p2_score <= 0; score_updated <= 0;
+        end else if (~KEY[0]) begin // Soft Reset
+            for(i=0; i<9; i=i+1) board[i] <= 0;
+            turn <= 0; score_updated <= 0;
+        end else if (game_over) begin
+            // Increment score exactly once per round
+            if (!score_updated) begin
+                if (win_1) p1_score <= p1_score + 1;
+                if (win_2) p2_score <= p2_score + 1;
+                score_updated <= 1;
+            end
         end else begin
             // Place piece if valid switch is selected and human presses KEY[3]
             if (human_press && sw_sel != 9 && board[sw_sel] == 0) begin
@@ -83,7 +116,7 @@ module TicTacToe(
 
     // --- 9. Rendering Pipeline ---
     wire [1:0] state = board[cell_idx];
-    wire is_prev = (state == 0 && sw_sel == cell_idx);
+    wire is_prev = (state == 0 && sw_sel == cell_idx && !game_over); // Hides cursor on game over
     wire draw_shape = (state == 1) ? is_X : (state == 2) ? is_O : (is_prev ? ((turn==0)?is_X:is_O) : 1'b0);
 
     reg [23:0] rgb;
@@ -99,7 +132,6 @@ module TicTacToe(
     
     assign {VGA_R, VGA_G, VGA_B} = rgb;
 
-    
     assign HEX5 = 7'b1111111; 
     assign HEX4 = 7'b1111111; 
     assign HEX3 = 7'b1111111;
