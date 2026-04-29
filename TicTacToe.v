@@ -51,6 +51,7 @@ module TicTacToe(
     reg score_updated; 
     reg [3:0] p1_score = 0, p2_score = 0;
     
+    // Combinatorial win detection
     wire w_r0 = (board[0]!=0) && (board[0]==board[1]) && (board[1]==board[2]);
     wire w_r1 = (board[3]!=0) && (board[3]==board[4]) && (board[4]==board[5]);
     wire w_r2 = (board[6]!=0) && (board[6]==board[7]) && (board[7]==board[8]);
@@ -71,10 +72,10 @@ module TicTacToe(
     wire game_over = w_r0 | w_r1 | w_r2 | w_c0 | w_c1 | w_c2 | w_d1 | w_d2;
     
     always @(posedge pclk) begin
-        if (~KEY[2]) begin 
+        if (~KEY[2]) begin // Hard Reset
             for(i=0; i<9; i=i+1) board[i] <= 0;
             turn <= 0; p1_score <= 0; p2_score <= 0; score_updated <= 0;
-        end else if (~KEY[0]) begin 
+        end else if (~KEY[0]) begin // Soft Reset
             for(i=0; i<9; i=i+1) board[i] <= 0;
             turn <= 0; score_updated <= 0;
         end else if (game_over) begin
@@ -84,6 +85,7 @@ module TicTacToe(
                 score_updated <= 1;
             end
         end else begin
+            // Human piece placement logic
             if (human_press && sw_sel != 9 && board[sw_sel] == 0) begin
                 board[sw_sel] <= (turn == 0) ? 1 : 2; 
                 turn <= ~turn; 
